@@ -25,14 +25,8 @@ const nodes = ref([
 ]);
 
 const Y = [
-  [
-    { re: 264.5, im: -529 },
-    { re: -264.5, im: 529 },
-  ],
-  [
-    { re: -264.5, im: 529 },
-    { re: 264.5, im: -529 },
-  ],
+  [Complex({ re: 264.5, im: -529 }), Complex({ re: -264.5, im: 529 })],
+  [Complex({ re: -264.5, im: 529 }), Complex({ re: 264.5, im: -529 })],
 ];
 
 const jacobianMatrix = (Y, V, P, Q) => {
@@ -90,7 +84,8 @@ const solveLinearEquation = (A, b) => {
 };
 
 const newtonRaphson = (nodes, Y) => {
-  const n = nodes.length;
+  const n = nodes.value.length;
+  console.log("n", n);
   const tolerance = 1e-1;
   const maxIterations = 100;
 
@@ -101,39 +96,55 @@ const newtonRaphson = (nodes, Y) => {
     const imag = voltage * Math.sin(angleRad);
     return new Complex(real, imag);
   });
+  //до сюда работает
 
   let converged = false;
 
   for (let iter = 0; iter < maxIterations; iter++) {
     const P = Array(n).fill(0);
+    // console.log("P", P);
     const Q = Array(n).fill(0);
+    // console.log("Q", Q);
+    // console.log("///");
 
+    // Calculate P and Q
     for (let i = 0; i < n; i++) {
       let sumP = new Complex(0, 0);
       let sumQ = new Complex(0, 0);
       for (let j = 0; j < n; j++) {
+        console.log(i, j);
         if (i !== j) {
-          const yij = new Complex(Y[i][j]);
+          const yij = Y[i][j];
           const vj = V[j];
           const vi = V[i];
           const thetaij = yij.arg();
           const magYij = yij.abs();
           const magVj = vj.abs();
           const deltaTheta = vi.arg() - vj.arg();
-          console.log("yij:", yij);
-          console.log("vj:", vj);
-          console.log("vi:", vi);
+          //   console.log("yij", yij);
+          //   console.log("vj", vj);
+          //   console.log("vi", vi);
+          //   console.log("thetaij", thetaij);
+          //   console.log("magYij", magYij);
+          //   console.log("magVj", magVj);
+          //   console.log("deltaTheta", deltaTheta);
+
           sumP = sumP.add(magYij * magVj * Math.cos(thetaij - deltaTheta));
           sumQ = sumQ.add(magYij * magVj * Math.sin(thetaij - deltaTheta));
+          console.log("SUM", sumP, sumQ);
         }
       }
       const vi = V[i];
       P[i] = vi.abs() * sumP.re;
       Q[i] = vi.abs() * sumQ.im;
-      console.log("P[i]:", P[i]);
-      console.log("Q[i]:", Q[i]);
     }
 
+    // Log P and Q
+    // console.log(`Iteration ${iter + 1}`);
+    // console.log("P:", P);
+    // console.log("Q:", Q);
+
+    // Calculate deltaP and deltaQ
     const deltaP = nodes.value.map(
       (node, i) => parseFloat(node.activePowerMW) / basePower - P[i]
     );
@@ -141,9 +152,10 @@ const newtonRaphson = (nodes, Y) => {
       (node, i) => parseFloat(node.reactivePowerMVAR) / basePower - Q[i]
     );
 
-    console.log("deltaP:", deltaP);
-    console.log("deltaQ:", deltaQ);
+    // console.log("deltaP:", deltaP);
+    // console.log("deltaQ:", deltaQ);
 
+    // Check convergence
     if (
       deltaP.every((val) => Math.abs(val) < tolerance) &&
       deltaQ.every((val) => Math.abs(val) < tolerance)
@@ -152,6 +164,7 @@ const newtonRaphson = (nodes, Y) => {
       break;
     }
 
+    // Calculate Jacobian matrix and update V
     const J = jacobianMatrix(Y, V, P, Q);
     const deltaThetaV = solveLinearEquation(J, deltaP.concat(deltaQ));
 
@@ -174,6 +187,9 @@ const newtonRaphson = (nodes, Y) => {
   } else {
     result.value = [{ error: "Did not converge" }];
   }
+
+  return result.value; // Return results for further debugging
 };
+
 newtonRaphson(nodes, Y);
 console.log("result", result.value);
