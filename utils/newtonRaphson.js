@@ -1,9 +1,12 @@
 import { ref } from "vue";
 import Complex from "complex.js";
+import { matrix, inv, lusolve, re } from "mathjs";
 const baseVoltage = 115; // кВ
 const basePower = 100; // МВА
 const baseImpedance = Math.pow(baseVoltage, 2) / basePower; //// 132.25 Ом
 const baseAdmittance = 1 / baseImpedance; //0.007558718861209964 1/Ом
+
+let result = [];
 
 const nodes = ref([
   {
@@ -42,7 +45,7 @@ const jacobianMatrix = (Y, V, P, Q) => {
     const vi = V[i];
     for (let j = 0; j < n; j++) {
       if (i !== j) {
-        const yij = Y[i][j];
+        const yij = new Complex(Y[i][j]);
         const vj = V[j];
         const deltaTheta = vi.arg() - vj.arg();
         const magYij = yij.abs();
@@ -57,8 +60,7 @@ const jacobianMatrix = (Y, V, P, Q) => {
         let sum2 = 0;
         for (let k = 0; k < n; k++) {
           if (k !== i) {
-            const yik = Y[i][k];
-            console.log("yik", yik);
+            const yik = new Complex(Y[i][k]);
             const vk = V[k];
             const deltaTheta = vi.arg() - vk.arg();
             const magYik = yik.abs();
@@ -89,7 +91,7 @@ const solveLinearEquation = (A, b) => {
 
 const newtonRaphson = (nodes, Y) => {
   const n = nodes.length;
-  const tolerance = 1e-6;
+  const tolerance = 1e-1;
   const maxIterations = 100;
 
   let V = nodes.value.map((node) => {
@@ -111,14 +113,16 @@ const newtonRaphson = (nodes, Y) => {
       let sumQ = new Complex(0, 0);
       for (let j = 0; j < n; j++) {
         if (i !== j) {
-          const yij = Y[i][j];
+          const yij = new Complex(Y[i][j]);
           const vj = V[j];
           const vi = V[i];
           const thetaij = yij.arg();
           const magYij = yij.abs();
           const magVj = vj.abs();
           const deltaTheta = vi.arg() - vj.arg();
-
+          console.log("yij:", yij);
+          console.log("vj:", vj);
+          console.log("vi:", vi);
           sumP = sumP.add(magYij * magVj * Math.cos(thetaij - deltaTheta));
           sumQ = sumQ.add(magYij * magVj * Math.sin(thetaij - deltaTheta));
         }
@@ -126,6 +130,8 @@ const newtonRaphson = (nodes, Y) => {
       const vi = V[i];
       P[i] = vi.abs() * sumP.re;
       Q[i] = vi.abs() * sumQ.im;
+      console.log("P[i]:", P[i]);
+      console.log("Q[i]:", Q[i]);
     }
 
     const deltaP = nodes.value.map(
@@ -134,6 +140,9 @@ const newtonRaphson = (nodes, Y) => {
     const deltaQ = nodes.value.map(
       (node, i) => parseFloat(node.reactivePowerMVAR) / basePower - Q[i]
     );
+
+    console.log("deltaP:", deltaP);
+    console.log("deltaQ:", deltaQ);
 
     if (
       deltaP.every((val) => Math.abs(val) < tolerance) &&
@@ -166,5 +175,5 @@ const newtonRaphson = (nodes, Y) => {
     result.value = [{ error: "Did not converge" }];
   }
 };
-const res = newtonRaphson(nodes, Y);
-console.log("res", res);
+newtonRaphson(nodes, Y);
+console.log("result", result.value);
