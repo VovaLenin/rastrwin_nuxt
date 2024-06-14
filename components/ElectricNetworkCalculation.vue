@@ -106,10 +106,12 @@ export default {
         ).mul(baseAdmittance);
         Y[i][i] = Y[i][i].add(yNode);
       });
+      console.log("Y", Y);
     };
 
-    //Функция newtonRaphson использует метод Ньютона-Рапсона для решения уравнений и нахождения стационарных значений в системе, определяемой узлами и матрицей проводимости
+    //Функция newtonRaphson использует метод Ньютона-Рафсона для решения уравнений и нахождения стационарных значений в системе, определяемой узлами и матрицей проводимости
     const newtonRaphson = (nodes, Y) => {
+      console.log("nodes", nodes);
       const n = nodes.length;
       const tolerance = 1e-6;
       const maxIterations = 100;
@@ -234,13 +236,12 @@ export default {
 
     const solveLinearEquation = (A, b) => {
       const mathA = matrix(
-        A.map((row) => row.map((value) => new Complex(value.re, value.im)))
+        A.map((row) => row.map((value) => new Complex(value, 0)))
       );
       const mathB = matrix(b.map((value) => new Complex(value, 0)));
       const solution = lusolve(mathA, mathB);
       return solution.toArray().map((row) => row[0].re);
     };
-
     return { calculate, result };
   },
 };

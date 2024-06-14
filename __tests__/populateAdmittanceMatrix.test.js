@@ -83,6 +83,7 @@ const populateAdmittanceMatrix = (Y, nodes, branches) => {
 // test("populateAdmittanceMatrix fills Y matrix correctly", () => {
 const Y = initAdmittanceMatrix(nodes.value.length);
 populateAdmittanceMatrix(Y, nodes.value, branches.value);
+console.log("Y", Y);
 
 //   // Проверка значения y = 264.2526 - 529.1497i
 //   const expectedYRe = 264.2526;
