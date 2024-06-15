@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h5 class="text-center mb-2">{{ title }}</h5>
+    <h3 class="title">{{ title }}</h3>
     <table class="table table-bordered table-sm w-auto m-auto">
       <tbody>
         <tr v-for="(row, rowIndex) in matrix" :key="rowIndex">
@@ -22,6 +22,10 @@ const props = defineProps({
 });
 </script>
 
-<style scoped>
-/* Добавьте стили по необходимости */
+<style scoped lang="scss">
+.title {
+  margin-bottom: 10px;
+  font-size: 24px;
+  color: black;
+}
 </style>

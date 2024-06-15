@@ -1,8 +1,10 @@
 <template>
   <div>
     <h3>Network Calculation using Newton's Method</h3>
+    <CustomTable :headers="headers" />
     <button @click="calculate">Calculate</button>
-    <div v-if="Y.length">{{ Y }}</div>
+
+    <!-- <div v-if="Y.length">{{ Y }}</div> -->
     <!-- <div v-if="result.length">
       <h4>Calculation Results:</h4>
       <table>
@@ -31,8 +33,26 @@
 import { ref } from "vue";
 import Complex from "complex.js";
 import { matrix, inv, lusolve, re } from "mathjs";
+import DataGrid from "../components/DataGrid.vue";
+import CustomTable from "./CustomTable.vue";
+// import nodes from "~/server/api/nodes";
 
 export default {
+  data() {
+    return {
+      headers: [
+        "№",
+        "Название",
+        "Тип",
+        "U, кВ",
+        "dU, гр",
+        "P, Мвт",
+        "Q, МВар",
+        "Yd, мкСм",
+        "Ym, мкСм",
+      ],
+    };
+  },
   setup() {
     const nodes = ref([
       {

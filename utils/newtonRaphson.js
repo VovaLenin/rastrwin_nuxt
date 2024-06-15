@@ -10,15 +10,33 @@ let result = [];
 
 const nodes = ref([
   {
-    voltageKV: 115.0,
+    voltageKV: 110.0,
     voltageAngle: 0.0,
     activePowerMW: 0.0,
     reactivePowerMVAR: 0.0,
   },
   {
-    voltageKV: 115.0,
+    voltageKV: 110.0,
     voltageAngle: -5.0,
     activePowerMW: 20.0,
+    reactivePowerMVAR: 10.0,
+  },
+  {
+    voltageKV: 110.0,
+    voltageAngle: 0.0,
+    activePowerMW: 0.0,
+    reactivePowerMVAR: 0.0,
+  },
+  {
+    voltageKV: 10.0,
+    voltageAngle: 0.0,
+    activePowerMW: 5.0,
+    reactivePowerMVAR: 4.0,
+  },
+  {
+    voltageKV: 10.0,
+    voltageAngle: 0.0,
+    activePowerMW: 7.0,
     reactivePowerMVAR: 10.0,
   },
   // другие узлы
