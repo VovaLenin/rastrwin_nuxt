@@ -1,11 +1,13 @@
 <template>
-  <div>
+  <div class="table-container" :id="id">
     <h3 class="table-title">{{ title }}</h3>
     <table>
       <thead>
         <tr>
-          <th v-for="(header, index) in headers" :key="index">{{ header }}</th>
-          <th>Actions</th>
+          <th v-for="(header, index) in headers" :key="index + header">
+            {{ header }}
+          </th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -14,13 +16,15 @@
             <input v-model="tableData[rowIndex][cellIndex]" type="text" />
           </td>
           <td>
-            <button @click="removeRow(rowIndex)">Remove</button>
+            <button @click="removeRow(rowIndex)" class="remove-button">
+              ✕
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
-    <button @click="addRow">Add Row</button>
-    <button @click="saveData">Save Data</button>
+    <button @click="addRow">Add</button>
+    <!-- <button @click="saveData">Save Data</button> -->
     <pre>{{ savedData }}</pre>
   </div>
 </template>
@@ -34,6 +38,11 @@ export default {
       default: () => [],
     },
     title: {
+      type: String,
+      required: true,
+      default: () => "",
+    },
+    id: {
       type: String,
       required: true,
       default: () => "",
@@ -53,7 +62,9 @@ export default {
       this.tableData.splice(index, 1);
     },
     saveData() {
+      console.log("ОТРАБОТАЛО В РЕБЕНКЕ");
       this.savedData = this.tableData.map((row) => [...row]);
+      this.$emit("saveData", { data: this.savedData, id: this.id });
     },
     createEmptyArray(length) {
       return Array.from({ length }, () => "");
@@ -67,6 +78,15 @@ export default {
 </script>
 
 <style scoped>
+.table-container {
+  padding: 20px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  max-width: 60%;
+}
+
 table {
   border-collapse: collapse;
   margin: 20px 0;
@@ -76,16 +96,17 @@ table {
 th,
 td {
   border: 1px solid #ddd;
-  padding: 8px;
+  padding: 0;
 }
 
 input {
   width: 100%;
+  height: 35px;
+  border: none;
   box-sizing: border-box;
 }
 
 button {
-  margin-top: 20px;
   padding: 10px 20px;
   background-color: #007bff;
   color: white;
@@ -103,9 +124,15 @@ thead {
 
 th {
   text-align: left;
+  padding: 5px;
 }
 
 .actions {
   text-align: center;
+}
+
+.remove-button {
+  color: red;
+  font-weight: 800;
 }
 </style>

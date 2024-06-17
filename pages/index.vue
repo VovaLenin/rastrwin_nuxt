@@ -1,12 +1,12 @@
 <template>
   <div>
     <ElectricNetworkCalculation />
-    <packMatrix />
+    <!-- <packMatrix /> -->
   </div>
 </template>
 
 <script setup>
-import NodesTable from "@/components/NodesTable.vue";
+// import NodesTable from "@/components/NodesTable.vue";
 </script>
 
 <style>
