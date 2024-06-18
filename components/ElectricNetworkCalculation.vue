@@ -7,6 +7,7 @@
       id="nodes"
       ref="nodesTable"
       @save-data="changeValues"
+      :initial-data="networkParams.nodes"
     />
     <CustomTable
       :headers="branchesHeaders"
@@ -14,17 +15,18 @@
       id="branches"
       ref="branchesTable"
       @save-data="changeValues"
+      :initial-data="networkParams.branches"
     />
     <StaticTable
-      :headers="['Header 1', 'Header 2', 'Header 3']"
-      :data="[
-        ['Row 1, Cell 1', 'Row 1, Cell 2', 'Row 1, Cell 3'],
-        ['Row 2, Cell 1', 'Row 2, Cell 2', 'Row 2, Cell 3'],
-      ]"
+      :data="conductivityMatrix"
       title="Example Table"
       ref="childComponentRef"
     />
     <button @click="saveData">Сохранить данные</button>
+    <button @click="loadData">Загрузить данные</button>
+    <button @click="createConductivityMatrix">
+      Создать матрицу проводимостей
+    </button>
   </div>
 </template>
 
@@ -34,6 +36,7 @@ import Complex from "complex.js";
 import { matrix, inv, lusolve, re } from "mathjs";
 import CustomTable from "./CustomTable.vue";
 import StaticTable from "./StaticTable.vue";
+import createMatrixY from "~/utils/createMatrixY";
 
 export default {
   data() {
@@ -57,7 +60,11 @@ export default {
         "X, Ом",
         "Kt",
       ],
-      networkParams: {},
+      networkParams: {
+        branches: [],
+        nodes: [],
+      },
+      conductivityMatrix: [],
     };
   },
   methods: {
@@ -73,6 +80,27 @@ export default {
     changeValues({ id, data }) {
       this.networkParams[id] = data;
       console.log(this.networkParams);
+    },
+    loadData() {
+      this.networkParams = {
+        branches: [
+          ["Линия 1", "1", "2", "40", "35", "1"],
+          ["Линия 2", "1", "3", "40", "35", "1"],
+          ["Линия 3", "2", "3", "40", "35", "1"],
+          ["Трансформатор 1", "2", "4", "15", "20", "11"],
+          ["Трансформатор 2", "3", "5", "15", "20", "11"],
+        ],
+        nodes: [
+          ["1", "", "", "110", "", "0", "0", "0", "-460"],
+          ["2", "", "", "110", "", "0", "0", "0", "-360"],
+          ["3", "", "", "110", "", "0", "0", "0", "-360"],
+          ["4", "", "", "10", "", "5", "4", "0", "0"],
+          ["5", "", "", "10", "", "7", "10", "0", "0"],
+        ],
+      };
+    },
+    createConductivityMatrix() {
+      this.conductivityMatrix = createMatrixY(true, this.networkParams);
     },
   },
   setup() {

@@ -47,12 +47,24 @@ export default {
       required: true,
       default: () => "",
     },
+    initialData: {
+      type: Array,
+      default: () => [],
+    },
   },
   data() {
     return {
       tableData: [],
       savedData: [],
     };
+  },
+  watch: {
+    initialData: {
+      immediate: true,
+      handler(newData) {
+        this.tableData = newData.map((row) => [...row]);
+      },
+    },
   },
   methods: {
     addRow() {
@@ -71,8 +83,11 @@ export default {
     },
   },
   mounted() {
-    this.tableData = [[...this.createEmptyArray(this.headers.length)]];
-    console.log(this.tableData);
+    // this.tableData = [[...this.createEmptyArray(this.headers.length)]];
+    // console.log(this.tableData);
+    this.tableData = this.initialData.length
+      ? this.initialData.map((row) => [...row])
+      : [[...this.createEmptyArray(this.headers.length)]];
   },
 };
 </script>

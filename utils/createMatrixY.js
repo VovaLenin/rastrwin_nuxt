@@ -1,5 +1,5 @@
 import roundValues from "./roundValues";
-const Complex = require("complex.js");
+import Complex from "complex.js";
 
 function createMatrixY(isConnectivity, values) {
   if (isConnectivity) {
@@ -39,7 +39,7 @@ function createMatrixY(isConnectivity, values) {
       Y[NK - 1][NN - 1] = Y[NK - 1][NN - 1].sub(Z.inverse().mul(KT));
     }
     const Y1 = roundValues(Y, 3);
-    console.log(Y1);
+    console.log("МАТРИЦА ПРОВОДИМОСТИ", Y1);
     return Y1;
   } else return null;
 }
