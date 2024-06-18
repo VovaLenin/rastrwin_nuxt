@@ -26,7 +26,7 @@ export default {
     },
     headers: {
       type: Array,
-      required: true,
+      required: false,
     },
     title: {
       type: String,

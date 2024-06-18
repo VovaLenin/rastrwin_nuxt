@@ -33,6 +33,27 @@
       Создать матрицу проводимостей
     </button>
     <button @click="createImpedanceMatrix">Создать матрицу импедансов</button>
+    <button @click="calculate">Расчет методом простой итерации</button>
+    <div v-if="results.length">
+      <h4>Результаты расчета</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>U_new</th>
+            <th>Epsilon</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="result in results" :key="result.index">
+            <td>{{ result.index }}</td>
+            <td>{{ result.value }}</td>
+            <td>{{ result.epsilon }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Количество итераций: {{ iterations }}</p>
+    </div>
   </div>
 </template>
 
@@ -73,6 +94,8 @@ export default {
       },
       conductivityMatrix: [],
       impedanceMatrix: [],
+      results: [],
+      iterations: 0,
     };
   },
   methods: {
@@ -113,6 +136,70 @@ export default {
     createImpedanceMatrix() {
       this.impedanceMatrix = invertMatrix(this.conductivityMatrix);
     },
+    calculate() {
+      const NU = this.networkParams.nodes.length;
+      let U = new Array(NU).fill(new Complex(1, 0));
+      let U_new = new Array(NU).fill(new Complex(1, 0));
+      let S = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[5]), Number(node[6]))
+      );
+      let Y = matrix(
+        this.conductivityMatrix.map((row) =>
+          row.map((c) => new Complex(c[0], c[1]))
+        )
+      );
+      let err = 0.001; // Критерий сходимости
+      let limit_iter = 100; // Лимит итераций
+      let iter = 0;
+      let eps = new Array(NU).fill(0);
+      let eps_marker;
+
+      do {
+        let W = new Array(NU).fill(new Complex(0, 0));
+        for (let i = 1; i < NU; ++i) {
+          for (let j = 0; j < NU; ++j) {
+            W[i] = W[i].add(Y.get([i, j]).mul(U[j]));
+          }
+          W[i] = W[i].sub(S[i].div(U[i]));
+        }
+
+        let DW = matrix(Y.toArray().map((row) => row.slice()));
+        for (let i = 1; i < NU; ++i) {
+          DW.subset(
+            matrix.index(i, i),
+            DW.get([i, i]).add(S[i].div(U[i].mul(U[i])))
+          );
+        }
+
+        let DW_inv = inv(DW);
+        let DU = multiply(DW_inv, matrix(W));
+
+        DU = DU.toArray().map((c) => new Complex(c[0], c[1]));
+
+        U_new = U.map((u, i) => u.sub(DU[i]));
+
+        eps_marker = 0;
+        for (let i = 1; i < NU; ++i) {
+          eps[i] = abs(DU[i]);
+          if (eps[i] > err) {
+            eps_marker = 1;
+          }
+        }
+
+        if (eps_marker === 1) {
+          U = U_new.slice();
+        }
+
+        iter++;
+      } while (eps_marker !== 0 && iter < limit_iter);
+
+      this.results = U_new.map((u, i) => ({
+        index: i,
+        value: u.toString(),
+        epsilon: eps[i].toFixed(6),
+      }));
+      this.iterations = iter;
+    },
   },
   setup() {
     const nodes = ref([
@@ -124,7 +211,6 @@ export default {
       // другие ветви
     ]);
 
-    const calculate = () => {};
     // return { calculate, result };
   },
 };
