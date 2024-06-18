@@ -1,5 +1,5 @@
 import roundValues from "./roundValues";
-const Complex = require("complex.js");
+import Complex from "complex.js";
 
 export default function invertMatrix(matrix) {
   const nodes = matrix.length;

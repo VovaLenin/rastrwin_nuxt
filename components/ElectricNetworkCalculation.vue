@@ -19,14 +19,20 @@
     />
     <StaticTable
       :data="conductivityMatrix"
-      title="Example Table"
-      ref="childComponentRef"
+      title="Conductivity Matrix"
+      ref="conductivityMatrix"
+    />
+    <StaticTable
+      :data="impedanceMatrix"
+      title="Impedance Matrix"
+      ref="impedanceMatrix"
     />
     <button @click="saveData">Сохранить данные</button>
     <button @click="loadData">Загрузить данные</button>
     <button @click="createConductivityMatrix">
       Создать матрицу проводимостей
     </button>
+    <button @click="createImpedanceMatrix">Создать матрицу импедансов</button>
   </div>
 </template>
 
@@ -37,6 +43,7 @@ import { matrix, inv, lusolve, re } from "mathjs";
 import CustomTable from "./CustomTable.vue";
 import StaticTable from "./StaticTable.vue";
 import createMatrixY from "~/utils/createMatrixY";
+import invertMatrix from "~/utils/invertMatrix";
 
 export default {
   data() {
@@ -65,6 +72,7 @@ export default {
         nodes: [],
       },
       conductivityMatrix: [],
+      impedanceMatrix: [],
     };
   },
   methods: {
@@ -101,6 +109,9 @@ export default {
     },
     createConductivityMatrix() {
       this.conductivityMatrix = createMatrixY(true, this.networkParams);
+    },
+    createImpedanceMatrix() {
+      this.impedanceMatrix = invertMatrix(this.conductivityMatrix);
     },
   },
   setup() {
