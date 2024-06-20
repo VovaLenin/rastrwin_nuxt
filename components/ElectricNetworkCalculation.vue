@@ -137,61 +137,96 @@ export default {
       this.impedanceMatrix = invertMatrix(this.conductivityMatrix);
     },
     calculate() {
-      const NU = this.networkParams.nodes.length;
-      let U = new Array(NU).fill(new Complex(1, 0));
-      let U_new = new Array(NU).fill(new Complex(1, 0));
-      let S = this.networkParams.nodes.map(
+      const U = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[3]))
+      ); // Напряжение в узлах
+
+      const NU = this.networkParams.nodes.length; // Количество узлов
+      let U_new = new Array(NU).fill(new Complex(0, 0)); // Обновленное значение проводимости
+
+      const S = this.networkParams.nodes.map(
         (node) => new Complex(Number(node[5]), Number(node[6]))
-      );
-      let Y = matrix(
-        this.conductivityMatrix.map((row) =>
-          row.map((c) => new Complex(c[0], c[1]))
-        )
-      );
-      let err = 0.001; // Критерий сходимости
-      let limit_iter = 100; // Лимит итераций
+      ); // Полное значение мощности
+
+      const Kt = this.networkParams.branches.map(
+        (branch) => new Complex(Number(branch[5]))
+      ); // Коэффициенты трансформации
+
+      U_new[0] = U[0]; // Начальное значение
+
+      const err = 0.02; // Критерий сходимости(погрешность расчета)
+      const limit_iter = 50; // Лимит итераций
+
+      let W = new Array(NU).fill(new Complex(0, 0));
+      let DU = new Array(NU).fill(new Complex(0, 0));
+
+      let DW = this.deepCopyMatrix(this.conductivityMatrix);
+      // const DWOBR = this.createZeroComplexMatrix(NU, NU);
+
+      //МЕТОД НЬЮТОНА
+      let U1Y = new Complex(0, 0);
+      for (let i = 0; i < NU; ++i) {
+        U1Y = U1Y.add(this.conductivityMatrix[0][i]);
+      }
+      U1Y = U[0].mul(U1Y);
+
+      //начало итерационного процесса
       let iter = 0;
       let eps = new Array(NU).fill(0);
       let eps_marker;
 
       do {
-        let W = new Array(NU).fill(new Complex(0, 0));
+        // формирование матрицы небалансов токов
+        W = new Array(NU).fill(new Complex(0, 0)); // Сброс W в каждой итерации
         for (let i = 1; i < NU; ++i) {
           for (let j = 0; j < NU; ++j) {
-            W[i] = W[i].add(Y.get([i, j]).mul(U[j]));
+            W[i] = W[i].add(this.conductivityMatrix[i][j].mul(U[j]));
           }
           W[i] = W[i].sub(S[i].div(U[i]));
+          W[i] = W[i].sub(U1Y);
         }
 
-        let DW = matrix(Y.toArray().map((row) => row.slice()));
+        // формирование матрицы Якоби
+        DW = this.deepCopyMatrix(this.conductivityMatrix); // Обновляем DW в каждой итерации
         for (let i = 1; i < NU; ++i) {
-          DW.subset(
-            matrix.index(i, i),
-            DW.get([i, i]).add(S[i].div(U[i].mul(U[i])))
-          );
+          DW[i][i] = DW[i][i].add(S[i].div(U[i].sqrt()));
         }
 
-        let DW_inv = inv(DW);
-        let DU = multiply(DW_inv, matrix(W));
+        //обращение матрицы Якоби
+        const DWOBR = invertMatrix(DW);
+        console.log({ DWOBR });
 
-        DU = DU.toArray().map((c) => new Complex(c[0], c[1]));
+        // определяем небаланс напряжений
+        DU = DWOBR.map((row, i) => {
+          return row.reduce(
+            (sum, value, j) => sum.add(value.mul(W[j])),
+            new Complex(0, 0)
+          );
+        });
 
-        U_new = U.map((u, i) => u.sub(DU[i]));
+        U_new.forEach((_, i) => {
+          U_new[i] = U[i].sub(DU[i]);
+        });
 
+        // проверка погрешности и лимита итераций
         eps_marker = 0;
         for (let i = 1; i < NU; ++i) {
-          eps[i] = abs(DU[i]);
+          eps[i] = DU[i].abs();
           if (eps[i] > err) {
             eps_marker = 1;
           }
         }
 
-        if (eps_marker === 1) {
-          U = U_new.slice();
+        if (eps_marker == 1) {
+          for (let i = 0; i < NU; ++i) {
+            U[i] = U_new[i];
+          }
         }
 
-        iter++;
-      } while (eps_marker !== 0 && iter < limit_iter);
+        ++iter;
+      } while (eps_marker !== 0 && iter < limit_iter); // ПОБИТОВОЕ ИСКЛЮЧАЮЩЕЕ "ИЛИ"
+
+      console.log(U);
 
       this.results = U_new.map((u, i) => ({
         index: i,
@@ -199,6 +234,25 @@ export default {
         epsilon: eps[i].toFixed(6),
       }));
       this.iterations = iter;
+      console.log(this.results);
+      console.log(this.iterations);
+    },
+    deepCopyMatrix(matrix) {
+      return matrix.map((row) =>
+        row.map((complex) => new Complex(complex.re, complex.im))
+      );
+    },
+    createZeroComplexMatrix(rows, cols) {
+      // Создаем массив заданной размерности
+      const matrix = new Array(rows);
+      for (let i = 0; i < rows; i++) {
+        matrix[i] = new Array(cols);
+        for (let j = 0; j < cols; j++) {
+          // Заполняем нулевыми комплексными числами
+          matrix[i][j] = new Complex(0, 0);
+        }
+      }
+      return matrix;
     },
   },
   setup() {

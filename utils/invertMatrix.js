@@ -30,5 +30,6 @@ export default function invertMatrix(matrix) {
     YP = [...Z];
   }
   const Z1 = roundValues(Z, 3);
+  console.log("Матрица импедансов", Z1);
   return Z1;
 }
