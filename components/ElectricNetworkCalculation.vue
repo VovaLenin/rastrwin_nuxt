@@ -60,13 +60,17 @@
 <script>
 import { ref } from "vue";
 import Complex from "complex.js";
-import { matrix, inv, lusolve, re } from "mathjs";
+import { matrix, inv } from "mathjs"; // Не забудьте импортировать или определить invertMatrix
 import CustomTable from "./CustomTable.vue";
 import StaticTable from "./StaticTable.vue";
 import createMatrixY from "~/utils/createMatrixY";
 import invertMatrix from "~/utils/invertMatrix";
 
 export default {
+  components: {
+    CustomTable,
+    StaticTable,
+  },
   data() {
     return {
       nodesHeaders: [
@@ -138,7 +142,7 @@ export default {
     },
     calculate() {
       const U = this.networkParams.nodes.map(
-        (node) => new Complex(Number(node[3]))
+        (node) => new Complex(Number(node[3]), 0)
       ); // Напряжение в узлах
 
       const NU = this.networkParams.nodes.length; // Количество узлов
@@ -149,34 +153,32 @@ export default {
       ); // Полное значение мощности
 
       const Kt = this.networkParams.branches.map(
-        (branch) => new Complex(Number(branch[5]))
+        (branch) => new Complex(Number(branch[5]), 0)
       ); // Коэффициенты трансформации
 
       U_new[0] = U[0]; // Начальное значение
 
-      const err = 0.02; // Критерий сходимости(погрешность расчета)
+      const err = 0.02; // Критерий сходимости (погрешность расчета)
       const limit_iter = 50; // Лимит итераций
 
       let W = new Array(NU).fill(new Complex(0, 0));
       let DU = new Array(NU).fill(new Complex(0, 0));
 
       let DW = this.deepCopyMatrix(this.conductivityMatrix);
-      // const DWOBR = this.createZeroComplexMatrix(NU, NU);
 
-      //МЕТОД НЬЮТОНА
+      // МЕТОД НЬЮТОНА
       let U1Y = new Complex(0, 0);
       for (let i = 0; i < NU; ++i) {
-        U1Y = U1Y.add(this.conductivityMatrix[0][i]);
+        U1Y = U1Y.add(this.conductivityMatrix[0][i].mul(U[i]));
       }
-      U1Y = U[0].mul(U1Y);
 
-      //начало итерационного процесса
+      // Начало итерационного процесса
       let iter = 0;
       let eps = new Array(NU).fill(0);
       let eps_marker;
 
       do {
-        // формирование матрицы небалансов токов
+        // Формирование матрицы небалансов токов
         W = new Array(NU).fill(new Complex(0, 0)); // Сброс W в каждой итерации
         for (let i = 1; i < NU; ++i) {
           for (let j = 0; j < NU; ++j) {
@@ -186,17 +188,16 @@ export default {
           W[i] = W[i].sub(U1Y);
         }
 
-        // формирование матрицы Якоби
+        // Формирование матрицы Якоби
         DW = this.deepCopyMatrix(this.conductivityMatrix); // Обновляем DW в каждой итерации
         for (let i = 1; i < NU; ++i) {
-          DW[i][i] = DW[i][i].add(S[i].div(U[i].sqrt()));
+          DW[i][i] = DW[i][i].add(S[i].div(U[i].pow(2)));
         }
 
-        //обращение матрицы Якоби
+        // Обращение матрицы Якоби
         const DWOBR = invertMatrix(DW);
-        console.log({ DWOBR });
 
-        // определяем небаланс напряжений
+        // Определяем небаланс напряжений
         DU = DWOBR.map((row, i) => {
           return row.reduce(
             (sum, value, j) => sum.add(value.mul(W[j])),
@@ -208,7 +209,7 @@ export default {
           U_new[i] = U[i].sub(DU[i]);
         });
 
-        // проверка погрешности и лимита итераций
+        // Проверка погрешности и лимита итераций
         eps_marker = 0;
         for (let i = 1; i < NU; ++i) {
           eps[i] = DU[i].abs();
@@ -224,7 +225,7 @@ export default {
         }
 
         ++iter;
-      } while (eps_marker !== 0 && iter < limit_iter); // ПОБИТОВОЕ ИСКЛЮЧАЮЩЕЕ "ИЛИ"
+      } while (eps_marker !== 0 && iter < limit_iter);
 
       console.log(U);
 
@@ -243,29 +244,18 @@ export default {
       );
     },
     createZeroComplexMatrix(rows, cols) {
-      // Создаем массив заданной размерности
       const matrix = new Array(rows);
       for (let i = 0; i < rows; i++) {
-        matrix[i] = new Array(cols);
-        for (let j = 0; j < cols; j++) {
-          // Заполняем нулевыми комплексными числами
-          matrix[i][j] = new Complex(0, 0);
-        }
+        matrix[i] = new Array(cols).fill(new Complex(0, 0));
       }
       return matrix;
     },
   },
   setup() {
-    const nodes = ref([
-      // другие узлы
-    ]);
+    const nodes = ref([]);
+    const branches = ref([]);
 
-    const branches = ref([
-      { from: 1, to: 2, resistanceOhms: 0.1, reactanceOhms: 0.2, ratio: 1.0 },
-      // другие ветви
-    ]);
-
-    // return { calculate, result };
+    return { nodes, branches };
   },
 };
 </script>
