@@ -33,7 +33,9 @@
       Создать матрицу проводимостей
     </button>
     <button @click="createImpedanceMatrix">Создать матрицу импедансов</button>
-    <button @click="calculate">Расчет методом простой итерации</button>
+    <button @click="calculateGaussSeidel">
+      Расчет методом простой итерации
+    </button>
     <div v-if="results.length">
       <h4>Результаты расчета</h4>
       <table>
@@ -57,7 +59,7 @@
   </div>
 </template>
 
-<script>
+<!-- <script>
 import { ref } from "vue";
 import Complex from "complex.js";
 import { matrix, inv } from "mathjs"; // Не забудьте импортировать или определить invertMatrix
@@ -238,6 +240,70 @@ export default {
       console.log(this.results);
       console.log(this.iterations);
     },
+    calculateGaussSeidel() {
+      const NU = this.networkParams.nodes.length;
+      let U = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[3]), 0)
+      );
+      let U_new = Array(NU).fill(new Complex(0, 0));
+      let S = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[5]), Number(node[6]))
+      );
+      let kt = Array(NU).fill(new Complex(1, 0));
+
+      // Load branch data
+      this.networkParams.branches.forEach((branch) => {
+        const NUK = Number(branch[2]) - 1;
+        kt[NUK] = new Complex(Number(branch[5]), 0);
+      });
+
+      U_new[0] = U[0]; // Начальное значение
+      const err = 0.02; // Критерий сходимости
+      const limit_iter = 50; // Лимит итераций
+      let iter = 0;
+      let eps = Array(NU).fill(0);
+      let eps_marker;
+
+      do {
+        for (let i = 1; i < NU; ++i) {
+          U_new[i] = U[0].div(kt[i]);
+          let ZP = new Complex(0, 0);
+          for (let j = 0; j < NU; ++j) {
+            let U_PR;
+            if (j < i) {
+              U_PR = U_new[j].inverse();
+            } else {
+              U_PR = U[j].inverse();
+            }
+            ZP = ZP.add(this.impedanceMatrix[i][j].mul(S[j].div(U_PR)));
+          }
+          U_new[i] = U_new[i].sub(ZP);
+        }
+
+        eps_marker = 0;
+        for (let i = 1; i < NU; ++i) {
+          eps[i] = Math.abs(U[i].abs() - U_new[i].abs());
+          if (eps[i] > err) {
+            eps_marker = 1;
+          }
+        }
+
+        if (eps_marker === 1) {
+          for (let i = 0; i < NU; ++i) {
+            U[i] = U_new[i];
+          }
+        }
+
+        iter++;
+      } while (eps_marker !== 0 && iter < limit_iter);
+
+      this.results = U_new.map((u, i) => ({
+        index: i,
+        value: u.toString(),
+        epsilon: eps[i].toFixed(6),
+      }));
+      this.iterations = iter;
+    },
     deepCopyMatrix(matrix) {
       return matrix.map((row) =>
         row.map((complex) => new Complex(complex.re, complex.im))
@@ -258,7 +324,7 @@ export default {
     return { nodes, branches };
   },
 };
-</script>
+</script> -->
 
 <style scoped>
 table {
@@ -277,3 +343,170 @@ th {
   text-align: left;
 }
 </style>
+
+<script>
+import { ref } from "vue";
+import Complex from "complex.js";
+import CustomTable from "./CustomTable.vue";
+import StaticTable from "./StaticTable.vue";
+import createMatrixY from "~/utils/createMatrixY";
+import invertMatrix from "~/utils/invertMatrix";
+
+export default {
+  components: {
+    CustomTable,
+    StaticTable,
+  },
+  data() {
+    return {
+      nodesHeaders: [
+        "№",
+        "Название",
+        "Тип",
+        "U, кВ",
+        "dU, гр",
+        "P, Мвт",
+        "Q, МВар",
+        "Yd, мкСм",
+        "Ym, мкСм",
+      ],
+      branchesHeaders: [
+        "Название",
+        "Узел начала",
+        "Узел конца",
+        "R, Om",
+        "X, Ом",
+        "Kt",
+      ],
+      networkParams: {
+        branches: [],
+        nodes: [],
+      },
+      conductivityMatrix: [],
+      impedanceMatrix: [],
+      results: [],
+      iterations: 0,
+    };
+  },
+  methods: {
+    saveData() {
+      const branchesTable = this.$refs.branchesTable;
+      const nodesTable = this.$refs.nodesTable;
+
+      if (branchesTable && nodesTable) {
+        branchesTable.saveData();
+        nodesTable.saveData();
+      }
+    },
+    changeValues({ id, data }) {
+      this.networkParams[id] = data;
+      console.log(this.networkParams);
+    },
+    loadData() {
+      this.networkParams = {
+        branches: [
+          ["Линия 1", "1", "2", "40", "35", "1"],
+          ["Линия 2", "1", "3", "40", "35", "1"],
+          ["Линия 3", "2", "3", "40", "35", "1"],
+          ["Трансформатор 1", "2", "4", "15", "20", "11"],
+          ["Трансформатор 2", "3", "5", "15", "20", "11"],
+        ],
+        nodes: [
+          ["1", "", "", "110", "", "0", "0", "0", "-460"],
+          ["2", "", "", "110", "", "0", "0", "0", "-360"],
+          ["3", "", "", "110", "", "0", "0", "0", "-360"],
+          ["4", "", "", "10", "", "5", "4", "0", "0"],
+          ["5", "", "", "10", "", "7", "10", "0", "0"],
+        ],
+      };
+    },
+    createConductivityMatrix() {
+      this.conductivityMatrix = createMatrixY(true, this.networkParams);
+    },
+    createImpedanceMatrix() {
+      this.impedanceMatrix = invertMatrix(this.conductivityMatrix);
+    },
+    calculateGaussSeidel() {
+      const NU = this.networkParams.nodes.length;
+      let U = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[3]), 0)
+      );
+      let U_new = Array(NU).fill(new Complex(0, 0));
+      let S = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[5]), Number(node[6]))
+      );
+      let kt = Array(NU).fill(new Complex(1, 0));
+
+      // Load branch data
+      this.networkParams.branches.forEach((branch) => {
+        const NUK = Number(branch[2]) - 1;
+        kt[NUK] = new Complex(Number(branch[5]), 0);
+      });
+
+      U_new[0] = U[0]; // Начальное значение
+      const err = 0.02; // Критерий сходимости
+      const limit_iter = 50; // Лимит итераций
+      let iter = 0;
+      let eps = Array(NU).fill(0);
+      let eps_marker;
+
+      do {
+        for (let i = 1; i < NU; ++i) {
+          U_new[i] = U[0].div(kt[i]);
+          let ZP = new Complex(0, 0);
+          for (let j = 0; j < NU; ++j) {
+            let U_PR;
+            if (j < i) {
+              U_PR = U_new[j];
+            } else {
+              U_PR = U[j];
+            }
+            ZP = ZP.add(this.impedanceMatrix[i][j].mul(S[j].div(U_PR)));
+          }
+          U_new[i] = U_new[i].sub(ZP);
+        }
+
+        eps_marker = 0;
+        for (let i = 1; i < NU; ++i) {
+          eps[i] = Math.abs(U[i].abs() - U_new[i].abs());
+          if (eps[i] > err) {
+            eps_marker = 1;
+          }
+        }
+
+        if (eps_marker === 1) {
+          for (let i = 0; i < NU; ++i) {
+            U[i] = U_new[i];
+          }
+        }
+
+        iter++;
+      } while (eps_marker !== 0 && iter < limit_iter);
+
+      this.results = U_new.map((u, i) => ({
+        index: i,
+        value: u.toString(),
+        epsilon: eps[i].toFixed(6),
+      }));
+      this.iterations = iter;
+    },
+    deepCopyMatrix(matrix) {
+      return matrix.map((row) =>
+        row.map((complex) => new Complex(complex.re, complex.im))
+      );
+    },
+    createZeroComplexMatrix(rows, cols) {
+      const matrix = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => new Complex(0, 0))
+      );
+      return matrix;
+    },
+  },
+  setup() {
+    const nodes = ref([]);
+    const branches = ref([]);
+
+    return { nodes, branches };
+  },
+};
+</script>
