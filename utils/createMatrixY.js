@@ -41,9 +41,10 @@ function createMatrixY(isConnectivity, values) {
       Y[NK - 1][NN - 1] = Y[NK - 1][NN - 1].sub(inverseZ.mul(KT));
     }
 
-    const Y1 = roundValues(Y, 3);
-    console.log("МАТРИЦА ПРОВОДИМОСТИ", Y1);
-    return Y1;
+    // const Y1 = roundValues(Y, 3);
+    // console.log("МАТРИЦА ПРОВОДИМОСТИ", Y1);
+    console.log("МАТРИЦА ПРОВОДИМОСТИ", Y);
+    return Y;
   } else return null;
 }
 
