@@ -34,7 +34,7 @@
     </button>
     <button @click="createImpedanceMatrix">Создать матрицу импедансов</button>
     <button @click="calculateGaussSeidel">Расчет методом Зейделя</button>
-    <<button @click="calculate">Расчет методом Ньютона</button>
+    <button @click="calculate">Расчет методом Ньютона</button>
     <div v-if="results.length">
       <h4>Результаты расчета</h4>
       <table>
@@ -142,26 +142,38 @@ export default {
       this.impedanceMatrix = invertMatrix(this.conductivityMatrix);
     },
     calculate() {
-      const NU = this.networkParams.nodes.length; // Количество узлов
+      const NU = this.networkParams.nodes.length;
       let U = this.networkParams.nodes.map(
         (node) => new Complex(Number(node[3]), 0)
-      ); // Напряжение в узлах
-
-      let U_new = new Array(NU).fill().map(() => new Complex(0, 0)); // Обновленное значение напряжения
-      const S = this.networkParams.nodes.map(
+      );
+      let U_new = Array(NU)
+        .fill()
+        .map(() => new Complex(0, 0));
+      let S = this.networkParams.nodes.map(
         (node) => new Complex(Number(node[5]), Number(node[6]))
-      ); // Полное значение мощности
+      );
+      let kt = Array(NU)
+        .fill()
+        .map(() => new Complex(1, 0));
 
-      // Инициализация начальных значений
-      U_new[0] = U[0]; // Начальное значение
-      const err = 0.02; // Критерий сходимости (погрешность расчета)
+      // Load branch data
+      this.networkParams.branches.forEach((branch) => {
+        const NUK = Number(branch[2]) - 1;
+        kt[NUK] = new Complex(Number(branch[5]), 0);
+      });
+
+      U_new[0] = new Complex(U[0].toString()); // Начальное значение
+      const err = 0.02; // Критерий сходимости
       const limit_iter = 50; // Лимит итераций
+      let iter = 0;
+      let eps = Array(NU).fill(0);
+      let eps_marker;
 
+      // МЕТОД НЬЮТОНА
       let W = new Array(NU).fill().map(() => new Complex(0, 0));
       let DU = new Array(NU).fill().map(() => new Complex(0, 0));
       let DW = this.deepCopyMatrix(this.conductivityMatrix);
 
-      // МЕТОД НЬЮТОНА
       let U1Y = new Complex(0, 0);
       for (let i = 0; i < NU; ++i) {
         U1Y = U1Y.add(this.conductivityMatrix[0][i]);
@@ -169,25 +181,21 @@ export default {
       U1Y = U[0].mul(U1Y);
 
       // Начало итерационного процесса
-      let iter = 0;
-      let eps = new Array(NU).fill(0);
-      let eps_marker;
-
       do {
         // Формирование матрицы небалансов токов
         for (let i = 1; i < NU; ++i) {
           W[i] = new Complex(0, 0);
           for (let j = 0; j < NU; ++j) {
-            W[i] = W[i].add(this.conductivityMatrix[i][j].mul(U[j]));
+            W[i] = W[i].add(this.conductivityMatrix[i][j].mul(U[j])); //ПЕРЕПРОВЕРИТЬ
           }
-          W[i] = W[i].sub(S[i].div(U[i]));
+          W[i] = W[i].sub(S[i].div(U[i])); //ПЕРЕПРОВЕРИТЬ
           W[i] = W[i].sub(U1Y);
         }
 
         // Формирование матрицы Якоби
-        DW = this.deepCopyMatrix(this.conductivityMatrix);
+        // DW = this.deepCopyMatrix(this.conductivityMatrix);
         for (let i = 1; i < NU; ++i) {
-          DW[i][i] = DW[i][i].add(S[i].div(U[i].pow(2)));
+          DW[i][i] = DW[i][i].add(S[i].div(U[i].pow(2))); //ПЕРЕПРОВЕРИТЬ
         }
 
         // Обращение матрицы Якоби
@@ -199,7 +207,7 @@ export default {
             (sum, value, j) => sum.add(value.mul(W[j])),
             new Complex(0, 0)
           );
-        });
+        }); //ОБРАТИТЬ ВНИМАНИЕ, ПЕРЕПРОВЕРИТЬ
 
         for (let i = 0; i < NU; ++i) {
           U_new[i] = U[i].sub(DU[i]);
@@ -258,6 +266,7 @@ export default {
       let eps = Array(NU).fill(0);
       let eps_marker;
 
+      // Начало итерационного процесса
       do {
         for (let i = 1; i < NU; ++i) {
           U_new[i] = U[0].div(kt[i]);
