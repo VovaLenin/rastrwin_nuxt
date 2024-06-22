@@ -66,6 +66,7 @@ import CustomTable from "./CustomTable.vue";
 import StaticTable from "./StaticTable.vue";
 import createMatrixY from "~/utils/createMatrixY";
 import invertMatrix from "~/utils/invertMatrix";
+import invertJacobian from "~/utils/invertJacobian";
 
 export default {
   components: {
@@ -186,28 +187,49 @@ export default {
         for (let i = 1; i < NU; ++i) {
           W[i] = new Complex(0, 0);
           for (let j = 0; j < NU; ++j) {
-            W[i] = W[i].add(this.conductivityMatrix[i][j].mul(U[j])); //ПЕРЕПРОВЕРИТЬ
+            W[i] = this.conductivityMatrix[i][j].mul(U[j]).add(W[i]); //ПЕРЕПРОВЕРИТЬ
+            // const provodimost = this.conductivityMatrix[i][j];
+            // (function () {
+            //   if (i === 3) {
+            //     console.log(`j = ${j} w=${W[i]} u=${U[j]}`);
+            //   }
+            // })();
           }
-          W[i] = W[i].sub(S[i].div(U[i])); //ПЕРЕПРОВЕРИТЬ
+
+          const I = S[i].div(U[i]);
+          W[i] = W[i].sub(I); //ПЕРЕПРОВЕРИТЬ
           W[i] = W[i].sub(U1Y);
         }
 
         // Формирование матрицы Якоби
         // DW = this.deepCopyMatrix(this.conductivityMatrix);
         for (let i = 1; i < NU; ++i) {
-          DW[i][i] = DW[i][i].add(S[i].div(U[i].pow(2))); //ПЕРЕПРОВЕРИТЬ
+          const powU = U[i].mul(U[i]);
+          console.log(powU);
+          DW[i][i] = S[i].div(powU).add(DW[i][i]); //ПЕРЕПРОВЕРИТЬ
         }
+        console.log(DW);
+        // (function () {
+        //   console.log("ДЭВЭ", DW);
+        // })();
 
         // Обращение матрицы Якоби
-        const DWOBR = invertMatrix(DW);
+        DW = invertJacobian(DW);
 
-        // Определяем небаланс напряжений
-        DU = DWOBR.map((row, i) => {
-          return row.reduce(
-            (sum, value, j) => sum.add(value.mul(W[j])),
-            new Complex(0, 0)
-          );
-        }); //ОБРАТИТЬ ВНИМАНИЕ, ПЕРЕПРОВЕРИТЬ
+        // // Определяем небаланс напряжений
+        // DU = DW.map((row, i) => {
+        //   return row.reduce(
+        //     (sum, value, j) => value.mul(W[j]).add(sum),
+        //     new Complex(0, 0)
+        //   );
+        // }); //ОБРАТИТЬ ВНИМАНИЕ, ПЕРЕПРОВЕРИТЬ
+
+        DU = new Array(NU).fill().map(() => new Complex(0, 0));
+        for (let i = 1; i < NU; i++) {
+          for (let j = 1; j < NU; j++) {
+            DU[i] = DW[i][j].mul(W[j]).add(DU[i]);
+          }
+        }
 
         for (let i = 0; i < NU; ++i) {
           U_new[i] = U[i].sub(DU[i]);
@@ -308,9 +330,22 @@ export default {
       this.iterations = iter;
     },
     deepCopyMatrix(matrix) {
-      return matrix.map((row) =>
-        row.map((complex) => new Complex(complex.re, complex.im))
-      );
+      let copiedMatrix = new Array(matrix.length)
+        .fill()
+        .map(() => new Array(matrix[0].length));
+
+      for (let i = 0; i < matrix.length; ++i) {
+        for (let j = 0; j < matrix[i].length; ++j) {
+          if (i === 0 || j === 0) {
+            copiedMatrix[i][j] = new Complex(0, 0);
+          } else {
+            copiedMatrix[i][j] = new Complex(matrix[i][j].re, matrix[i][j].im);
+          }
+        }
+      }
+      console.log(copiedMatrix);
+
+      return copiedMatrix;
     },
     createZeroComplexMatrix(rows, cols) {
       const matrix = new Array(rows);
