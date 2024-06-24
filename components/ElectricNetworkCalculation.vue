@@ -137,7 +137,6 @@ export default {
     },
     changeValues({ id, data }) {
       this.networkParams[id] = data;
-      // console.log(this.networkParams);
     },
     loadData() {
       // this.networkParams = {
