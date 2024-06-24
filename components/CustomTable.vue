@@ -98,6 +98,7 @@ export default {
 
 <style scoped>
 .table-container {
+  box-sizing: border-box;
   padding: 20px;
   background-color: #f5f5f5;
   border-radius: 5px;

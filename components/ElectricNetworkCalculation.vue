@@ -4,7 +4,7 @@
       <h3 style="text-align: center">
         Network Calculation using Newton's Method
       </h3>
-      <div class="button-container">
+      <div class="button-container_title">
         <button @click="saveData">Сохранить данные</button>
         <button @click="loadData">Загрузить данные</button>
       </div>
@@ -26,13 +26,8 @@
       @save-data="changeValues"
       :initial-data="networkParams.branches"
     />
-    <button @click="checkNetworkConnectivity">Связность сети</button>
-    <label style="background-color: red">{{ networkConnectivityResult }}</label>
     <div class="button-container">
-      <button
-        @click="createConductivityMatrix"
-        v-if="networkParams.branches.length && networkParams.nodes.length"
-      >
+      <button @click="createConductivityMatrix">
         Создать матрицу проводимостей
       </button>
       <button @click="createImpedanceMatrix" v-if="conductivityMatrix.length">
@@ -51,7 +46,10 @@
       ref="impedanceMatrix"
       v-if="impedanceMatrix.length"
     />
-    <div class="button-container">
+    <div
+      class="button-container"
+      v-if="impedanceMatrix.length && conductivityMatrix.length"
+    >
       <button @click="calculateGaussSeidel">Расчет методом Зейделя</button>
       <button @click="calculate">Расчет методом Ньютона</button>
       <button @click="calculateSimpleIteration">
@@ -516,12 +514,14 @@ export default {
 <style scoped lang="scss">
 .container {
   margin: 0 auto;
-  max-width: 760px;
+  max-width: 900px;
 }
 
 .title-container {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .button-container {
@@ -533,6 +533,11 @@ export default {
   border-radius: 10px;
   overflow: hidden;
   margin-inline: auto;
+  &_title {
+    display: flex;
+    border-radius: 10px;
+    overflow: hidden;
+  }
 }
 
 table {
