@@ -1,6 +1,15 @@
 <template>
-  <div>
-    <h3>Network Calculation using Newton's Method</h3>
+  <div class="container">
+    <div class="title-container">
+      <h3 style="text-align: center">
+        Network Calculation using Newton's Method
+      </h3>
+      <div class="button-container">
+        <button @click="saveData">Сохранить данные</button>
+        <button @click="loadData">Загрузить данные</button>
+      </div>
+    </div>
+
     <CustomTable
       :headers="nodesHeaders"
       title="Параметры узлов"
@@ -17,24 +26,38 @@
       @save-data="changeValues"
       :initial-data="networkParams.branches"
     />
+    <button @click="checkNetworkConnectivity">Связность сети</button>
+    <label style="background-color: red">{{ networkConnectivityResult }}</label>
+    <div class="button-container">
+      <button
+        @click="createConductivityMatrix"
+        v-if="networkParams.branches.length && networkParams.nodes.length"
+      >
+        Создать матрицу проводимостей
+      </button>
+      <button @click="createImpedanceMatrix" v-if="conductivityMatrix.length">
+        Создать матрицу импедансов
+      </button>
+    </div>
     <StaticTable
-      :data="conductivityMatrix"
+      :tableData="conductivityMatrix"
       title="Conductivity Matrix"
       ref="conductivityMatrix"
+      v-if="conductivityMatrix.length"
     />
     <StaticTable
-      :data="impedanceMatrix"
+      :tableData="impedanceMatrix"
       title="Impedance Matrix"
       ref="impedanceMatrix"
+      v-if="impedanceMatrix.length"
     />
-    <button @click="saveData">Сохранить данные</button>
-    <button @click="loadData">Загрузить данные</button>
-    <button @click="createConductivityMatrix">
-      Создать матрицу проводимостей
-    </button>
-    <button @click="createImpedanceMatrix">Создать матрицу импедансов</button>
-    <button @click="calculateGaussSeidel">Расчет методом Зейделя</button>
-    <button @click="calculate">Расчет методом Ньютона</button>
+    <div class="button-container">
+      <button @click="calculateGaussSeidel">Расчет методом Зейделя</button>
+      <button @click="calculate">Расчет методом Ньютона</button>
+      <button @click="calculateSimpleIteration">
+        Расчет методом простой итерации
+      </button>
+    </div>
     <div v-if="results.length">
       <h4>Результаты расчета</h4>
       <table>
@@ -61,7 +84,6 @@
 <script>
 import { ref } from "vue";
 import Complex from "complex.js";
-import { matrix, inv } from "mathjs"; // Не забудьте импортировать или определить invertMatrix
 import CustomTable from "./CustomTable.vue";
 import StaticTable from "./StaticTable.vue";
 import createMatrixY from "~/utils/createMatrixY";
@@ -102,6 +124,7 @@ export default {
       impedanceMatrix: [],
       results: [],
       iterations: 0,
+      networkConnectivityResult: "",
     };
   },
   methods: {
@@ -116,7 +139,7 @@ export default {
     },
     changeValues({ id, data }) {
       this.networkParams[id] = data;
-      console.log(this.networkParams);
+      // console.log(this.networkParams);
     },
     loadData() {
       this.networkParams = {
@@ -136,7 +159,88 @@ export default {
         ],
       };
     },
+    checkNetworkConnectivity() {
+      const NU = this.networkParams.nodes.length;
+      const NV = this.networkParams.branches.length;
+      let Uzli = new Array(NU);
+      for (let i = 0; i < NU; ++i) {
+        Uzli[i] = parseInt(this.networkParams.nodes[i][0]);
+      }
+
+      let NN = new Array(NV);
+      let NK = new Array(NV);
+      for (let i = 0; i < NV; ++i) {
+        NN[i] = parseInt(this.networkParams.branches[i][1]);
+        NK[i] = parseInt(this.networkParams.branches[i][2]);
+      }
+
+      let k = NN[0];
+      let kp = -1;
+
+      for (let i = 0; i < NV; ++i) {
+        if (NN[i] === k) {
+          kp = NK[i];
+        }
+
+        if (NK[i] === k) {
+          kp = NN[i];
+        }
+
+        let m = 0;
+        for (let l = 0; l < NU; ++l) {
+          if (kp === Uzli[l]) {
+            m = 1;
+          }
+        }
+
+        if (m !== 0) {
+          for (let j = 0; j < NV; ++j) {
+            if (NN[j] === kp) {
+              NN[j] = k;
+            }
+            if (NK[j] === kp) {
+              NK[j] = k;
+            }
+          }
+          for (let d = 0; d < NU; ++d) {
+            if (Uzli[d] === kp) {
+              Uzli[d] = k;
+            }
+          }
+        }
+      }
+
+      let priznak = 0;
+      for (let i = 0; i < NV; ++i) {
+        if (NN[i] !== k) {
+          priznak = 1;
+        }
+        if (NK[i] !== k) {
+          priznak = 1;
+        }
+      }
+
+      for (let i = 0; i < NU; ++i) {
+        if (Uzli[i] !== k) {
+          priznak = 2;
+        }
+      }
+
+      if (priznak === 0) {
+        this.networkConnectivityResult = "Сеть связна";
+      } else if (priznak === 1) {
+        this.networkConnectivityResult =
+          "Сеть несвязна. В сети есть висячие ветви";
+      } else if (priznak === 2) {
+        this.networkConnectivityResult =
+          "Сеть несвязна. В сети есть висячие узлы";
+      }
+    },
     createConductivityMatrix() {
+      this.checkNetworkConnectivity();
+      if (!this.networkConnectivityResult) {
+        return;
+      }
       this.conductivityMatrix = createMatrixY(true, this.networkParams);
     },
     createImpedanceMatrix() {
@@ -156,8 +260,6 @@ export default {
       let kt = Array(NU)
         .fill()
         .map(() => new Complex(1, 0));
-
-      // Load branch data
       this.networkParams.branches.forEach((branch) => {
         const NUK = Number(branch[2]) - 1;
         kt[NUK] = new Complex(Number(branch[5]), 0);
@@ -188,12 +290,6 @@ export default {
           W[i] = new Complex(0, 0);
           for (let j = 0; j < NU; ++j) {
             W[i] = this.conductivityMatrix[i][j].mul(U[j]).add(W[i]); //ПЕРЕПРОВЕРИТЬ
-            // const provodimost = this.conductivityMatrix[i][j];
-            // (function () {
-            //   if (i === 3) {
-            //     console.log(`j = ${j} w=${W[i]} u=${U[j]}`);
-            //   }
-            // })();
           }
 
           const I = S[i].div(U[i]);
@@ -205,25 +301,14 @@ export default {
         // DW = this.deepCopyMatrix(this.conductivityMatrix);
         for (let i = 1; i < NU; ++i) {
           const powU = U[i].mul(U[i]);
-          console.log(powU);
+          // console.log(powU);
           DW[i][i] = S[i].div(powU).add(DW[i][i]); //ПЕРЕПРОВЕРИТЬ
         }
-        console.log(DW);
-        // (function () {
-        //   console.log("ДЭВЭ", DW);
-        // })();
 
         // Обращение матрицы Якоби
         DW = invertJacobian(DW);
 
         // // Определяем небаланс напряжений
-        // DU = DW.map((row, i) => {
-        //   return row.reduce(
-        //     (sum, value, j) => value.mul(W[j]).add(sum),
-        //     new Complex(0, 0)
-        //   );
-        // }); //ОБРАТИТЬ ВНИМАНИЕ, ПЕРЕПРОВЕРИТЬ
-
         DU = new Array(NU).fill().map(() => new Complex(0, 0));
         for (let i = 1; i < NU; i++) {
           for (let j = 1; j < NU; j++) {
@@ -251,6 +336,70 @@ export default {
         }
 
         ++iter;
+      } while (eps_marker !== 0 && iter < limit_iter);
+
+      this.results = U_new.map((u, i) => ({
+        index: i,
+        value: u.toString(),
+        epsilon: eps[i].toFixed(6),
+      }));
+      this.iterations = iter;
+    },
+    calculateSimpleIteration() {
+      const NU = this.networkParams.nodes.length;
+      let U = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[3]), 0)
+      );
+      let U_new = Array(NU)
+        .fill()
+        .map(() => new Complex(0, 0));
+      let S = this.networkParams.nodes.map(
+        (node) => new Complex(Number(node[5]), Number(node[6]))
+      );
+      let kt = Array(NU)
+        .fill()
+        .map(() => new Complex(1, 0));
+
+      // Load branch data
+      this.networkParams.branches.forEach((branch) => {
+        const NUK = Number(branch[2]) - 1;
+        kt[NUK] = new Complex(Number(branch[5]), 0);
+      });
+
+      U_new[0] = new Complex(U[0].toString()); // Начальное значение
+      const err = 0.02; // Критерий сходимости
+      const limit_iter = 50; // Лимит итераций
+      let iter = 0;
+      let eps = Array(NU).fill(0);
+      let eps_marker;
+
+      // Начало итерационного процесса
+      do {
+        for (let i = 1; i < NU; ++i) {
+          let ZP = new Complex(0, 0);
+          let U_PR = new Complex(0, 0);
+          for (let j = 0; j < NU; ++j) {
+            U_PR = U[j].conjugate();
+            ZP = ZP.add(this.impedanceMatrix[i][j].mul(S[j]).div(U_PR));
+          }
+          U_new[i] = U[0].div(kt[i]).sub(ZP);
+        }
+
+        eps_marker = 0;
+        for (let i = 1; i < NU; ++i) {
+          eps[i] = Math.abs(U[i].abs() - U_new[i].abs());
+          if (eps[i] > err) {
+            eps_marker = 1;
+          }
+        }
+
+        if (eps_marker === 1) {
+          for (let i = 0; i < NU; ++i) {
+            U[i] = new Complex(U_new[i].re, U_new[i].im);
+          }
+        }
+
+        iter++;
       } while (eps_marker !== 0 && iter < limit_iter);
 
       this.results = U_new.map((u, i) => ({
@@ -343,7 +492,7 @@ export default {
           }
         }
       }
-      console.log(copiedMatrix);
+      // console.log(copiedMatrix);
 
       return copiedMatrix;
     },
@@ -364,7 +513,28 @@ export default {
 };
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.container {
+  margin: 0 auto;
+  max-width: 760px;
+}
+
+.title-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.button-container {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: min-content;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-inline: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -379,5 +549,20 @@ td {
 th {
   background-color: #f2f2f2;
   text-align: left;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-left: 1px solid #0050a6;
+  border-right: 1px solid #0050a6;
+  white-space: nowrap;
+}
+
+button:hover {
+  background-color: #0056b3;
 }
 </style>

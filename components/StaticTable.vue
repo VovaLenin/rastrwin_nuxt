@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="static-table">
     <h3>{{ title }}</h3>
     <table>
       <thead v-if="headers">
@@ -8,8 +8,10 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(row, rowIndex) in data" :key="rowIndex">
-          <td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ cell }}</td>
+        <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
+          <td v-for="(cell, cellIndex) in row" :key="cellIndex">
+            {{ formatComplexNumber(cell) }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -20,7 +22,7 @@
 export default {
   name: "StaticTable",
   props: {
-    data: {
+    tableData: {
       type: Array,
       required: true,
     },
@@ -33,10 +35,17 @@ export default {
       required: true,
     },
   },
+  mounted() {
+    console.log(this.tableData.length);
+  },
 };
 </script>
 
 <style scoped>
+.static-table {
+  margin: 0 auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -13,7 +13,11 @@
       <tbody>
         <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
           <td v-for="(cell, cellIndex) in row" :key="cellIndex">
-            <input v-model="tableData[rowIndex][cellIndex]" type="text" />
+            <input
+              @input="saveData"
+              v-model="tableData[rowIndex][cellIndex]"
+              type="text"
+            />
           </td>
           <td>
             <button @click="removeRow(rowIndex)" class="remove-button">
@@ -74,7 +78,6 @@ export default {
       this.tableData.splice(index, 1);
     },
     saveData() {
-      console.log("ОТРАБОТАЛО В РЕБЕНКЕ");
       this.savedData = this.tableData.map((row) => [...row]);
       this.$emit("saveData", { data: this.savedData, id: this.id });
     },
@@ -88,6 +91,7 @@ export default {
     this.tableData = this.initialData.length
       ? this.initialData.map((row) => [...row])
       : [[...this.createEmptyArray(this.headers.length)]];
+    // console.log("TABLE DATA", this.tableData);
   },
 };
 </script>
@@ -99,7 +103,7 @@ export default {
   border-radius: 5px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
-  max-width: 60%;
+  width: 100%;
 }
 
 table {
